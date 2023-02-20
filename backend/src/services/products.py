@@ -10,9 +10,9 @@ from ..schemas.products import (
     ProductUpdate,
     Update
 )
-from ..schemas.admin import Superuser
+from ..schemas.users import BasicUser
 
-from .admin import get_superuser
+from .auth import get_current_user
 from ..utils import sql_utils
 from ..database import get_db_conn
 
@@ -21,16 +21,17 @@ class ProductsService:
     def __init__(
         self,
         db_connection: Connection = Depends(get_db_conn),
-        superuser: Superuser = Depends(get_superuser)
+        current_user: BasicUser = Depends(get_current_user)
     ) -> None:
         self.db_conn = db_connection
-        self.superuser = superuser
+        self.current_user = current_user
     
     async def create_product(
         self,
         create_product: ProductIn
     ) -> ProductOut:
-        if not self.superuser:
+        if not self.current_user or \
+            not 'edit' in self.current_user.scopes:
             raise HTTPException(404)
         
         columns, values = sql_utils.dict_to_sql_columns_and_values(
@@ -91,16 +92,17 @@ class ProductsService:
 
     async def update_product(
         self,
+        product_id: int,
         update_product: ProductUpdate
     ) -> ProductOut:
-        if not self.superuser:
+        if not self.current_user or \
+            not 'edit' in self.current_user.scopes:
             raise HTTPException(404)
         
         update_product_dict = update_product.dict(
             exclude_unset=True
         )
 
-        product_id = update_product_dict.pop('id')
         update_description = update_product_dict.pop('description')
 
         columns, values = sql_utils.dict_to_sql_columns_and_values(
@@ -135,3 +137,21 @@ class ProductsService:
             product=product,
             updates=update
         )
+    
+    async def delete_product(
+        self,
+        product_id: int
+    ):
+        if not self.current_user or \
+            not 'edit' in self.current_user.scopes:
+            raise HTTPException(404)
+
+        await self.db_conn.execute(
+            f"""
+                DELETE
+                FROM products
+                WHERE products.id = {product_id}
+            """
+        )
+        
+

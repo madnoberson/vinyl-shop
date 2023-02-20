@@ -28,7 +28,6 @@ class ProductIn(BaseModel):
 
 
 class ProductUpdate(BaseModel):
-    id: int
     name: Optional[str] = None
 
 

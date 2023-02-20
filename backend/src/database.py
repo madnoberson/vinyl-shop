@@ -18,14 +18,19 @@ async def create_tables() -> None:
 
     await db_conn.execute(
         """
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                email VARCHAR(256) NOT NULL UNIQUE,
+                name VARCHAR(32) NOT NULL,
+                last_name VARCHAR(32) NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS superusers (
+                user_id INTEGER REFERENCES users (id),
+                scopes INTEGER NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS products (
                 id SERIAL PRIMARY KEY,
                 name VARCHAR(128) NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS superusers (
-                id SERIAL PRIMARY KEY,
-                name VARCHAR(64) NOT NULL,
-                token TEXT NOT NULL
             );
             CREATE TABLE IF NOT EXISTS products_updates (
                 product_id INTEGER REFERENCES products (id),
@@ -63,7 +68,8 @@ async def clean_up_db() -> None:
 
     await db_conn.execute(
         """
-            DROP TABLE products
+            DROP TABLE IF EXISTS products, superusers, products_updates CASACDE;
+            DROP SEQUENCE IF EXISTS products, superusers CASCADE;
         """
     )
 
