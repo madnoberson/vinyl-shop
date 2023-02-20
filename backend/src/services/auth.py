@@ -48,7 +48,7 @@ class AuthService:
         )
 
         try:
-            user_record = self.db_conn.fetchrow(
+            user_record = await self.db_conn.fetchrow(
                 f"""
                     INSERT INTO users
                     (
@@ -88,15 +88,20 @@ class AuthService:
 
         user_record = await self.db_conn.fetchrow(
             f"""
-                SELECT users.id,
-                       users.first_name,
-                       users.last_name,
-                       users.password,
-                       {user_data.email} AS email,
-                       superusers.scopes
-                JOIN superusers
+                SELECT 
+                     users.id,
+                     users.first_name,
+                     users.last_name,
+                     users.password,
+                     '{user_data.email}' AS email,
+                     superusers.scopes
+                FROM
+                     users
+                LEFT JOIN 
+                     superusers
                      ON superusers.user_id = users.id
-                WHERE users.email = {user_data.email}
+                WHERE
+                     users.email = '{user_data.email}'
             """
         )
 
