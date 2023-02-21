@@ -92,7 +92,6 @@ class AuthService:
                      users.id,
                      users.first_name,
                      users.last_name,
-                     users.password,
                      '{user_data.email}' AS email,
                      superusers.scopes
                 FROM

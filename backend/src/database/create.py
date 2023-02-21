@@ -58,7 +58,7 @@ async def create_functions() -> None:
                 FROM
                     users
                 WHERE
-                    users.id = user_id
+                    users.id = user_id;
             END; $$
             LANGUAGE plpgsql;
 

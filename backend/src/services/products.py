@@ -13,6 +13,7 @@ from ..schemas.products import (
 from ..schemas.users import BasicUser
 
 from .auth import get_current_user
+from .admin import scopes_required
 from ..utils import sql_utils
 from ..database import get_db_conn
 
@@ -26,14 +27,11 @@ class ProductsService:
         self.db_conn = db_connection
         self.current_user = current_user
     
+    @scopes_required(scopes=['edit'])
     async def create_product(
         self,
         create_product: ProductIn
     ) -> ProductOut:
-        if not self.current_user or \
-            (self.current_user and not 'edit' in self.current_user.scopes):
-            raise HTTPException(404)
-        
         columns, values = sql_utils.dict_to_sql_columns_and_values(
             create_product.dict(exclude_unset=True)
         )
@@ -90,15 +88,12 @@ class ProductsService:
             product=product
         )
 
+    @scopes_required(scopes=['edit'])
     async def update_product(
         self,
         product_id: int,
         update_product: ProductUpdate
     ) -> ProductOut:
-        if not self.current_user or \
-            (self.current_user and not 'edit' in self.current_user.scopes):
-            raise HTTPException(404)
-        
         update_product_dict = update_product.dict(
             exclude_unset=True
         )
@@ -138,14 +133,11 @@ class ProductsService:
             updates=update
         )
     
+    @scopes_required(scopes=['edit'])
     async def delete_product(
         self,
         product_id: int
     ):
-        if not self.current_user or \
-            (self.current_user and not 'edit' in self.current_user.scopes):
-            raise HTTPException(404)
-
         await self.db_conn.execute(
             f"""
                 DELETE
@@ -153,5 +145,3 @@ class ProductsService:
                 WHERE products.id = {product_id}
             """
         )
-        
-

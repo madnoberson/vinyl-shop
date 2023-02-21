@@ -53,7 +53,7 @@ async def fake_product() -> dict:
 
 
 @pytest.fixture
-async def shop_employee_token() -> str:
+async def token_with_edit_scope() -> str:
     pass
 
 

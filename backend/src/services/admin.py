@@ -12,6 +12,26 @@ from .auth import get_current_user
 from ..database import get_db_conn
 
 
+def scopes_required(scopes: list[str]):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            service = args[0]
+            current_user: BasicUser = service.current_user
+
+            if not current_user:
+                raise HTTPException(404)
+
+            for scope in scopes:
+                if scope not in current_user.scopes:
+                    raise HTTPException(404)
+            
+            return func(*args, **kwargs)
+        
+        return wrapper
+    
+    return decorator
+
+
 class AdminService:
     def __init__(
         self,
@@ -21,37 +41,34 @@ class AdminService:
         self.current_user = current_user
         self.db_conn = db_connection
     
+    @scopes_required(scopes=['admin'])
     async def create_superuser(
         self,
         create_superuser: SuperUserIn
     ):
-        if not self.current_user or \
-            (self.current_user and not 'admin' in self.current_user.scopes):
-            raise HTTPException(404)
-
-        superuser_record = await self.db_conn.fetchrow(
+        user_record = await self.db_conn.fetchrow(
             f"""
-                WITH scopes_row AS (
-                    INSERT INTO superusers 
-                    (
-                        user_id,
-                        scopes
-                    )
-                    VALUES
-                    (
-                        {create_superuser.user_id},
-                        {create_superuser.scopes}
-                    )
-                    RETURNING scopes
+                INSERT INTO superusers
+                (
+                    user_id,
+                    scopes
                 )
-                SELECT
-                      scopes,
-                      users.*
-                FROM
-                      scopes_row
-                JOIN
-                      get_basic_user({create_superuser.user_id})
+                VALUES
+                (
+                    {create_superuser.user_id},
+                    {create_superuser.scopes}
+                );
+                SELECT *
+                FROM get_basic_user({create_superuser.user_id})
             """
         )
 
-        return 
+        user = BasicUser.parse_obj(dict(user_record))
+        superuser = SuperUser(
+            user=user,
+            scopes=create_superuser.scopes
+        )
+
+        return SuperUserOut(
+            superuser=superuser
+        )

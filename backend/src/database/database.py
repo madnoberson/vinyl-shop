@@ -11,3 +11,4 @@ async def get_db_conn() -> Connection:
         yield db_conn
     finally:
         await db_conn.close()
+
