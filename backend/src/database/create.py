@@ -41,6 +41,28 @@ async def create_functions() -> None:
 
     await db_conn.execute(
         """
+            CREATE OR REPLACE FUNCTION get_basic_user(user_id integer)
+            RETURNS TABLE (
+                id INTEGER,
+                first_name VARCHAR,
+                lastname VARCHAR,
+                email VARCHAR
+            ) AS $$
+            BEGIN
+                RETURN QUERY
+                SELECT
+                    users.id,
+                    users.first_name,
+                    users.last_name,
+                    users.email
+                FROM
+                    users
+                WHERE
+                    users.id = user_id
+            END; $$
+            LANGUAGE plpgsql;
+
+
             CREATE OR REPLACE FUNCTION get_basic_product(product_id integer)
             RETURNS TABLE (
                 id INTEGER,

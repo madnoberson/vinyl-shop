@@ -31,7 +31,7 @@ class ProductsService:
         create_product: ProductIn
     ) -> ProductOut:
         if not self.current_user or \
-            not 'edit' in self.current_user.scopes:
+            (self.current_user and not 'edit' in self.current_user.scopes):
             raise HTTPException(404)
         
         columns, values = sql_utils.dict_to_sql_columns_and_values(
@@ -96,7 +96,7 @@ class ProductsService:
         update_product: ProductUpdate
     ) -> ProductOut:
         if not self.current_user or \
-            not 'edit' in self.current_user.scopes:
+            (self.current_user and not 'edit' in self.current_user.scopes):
             raise HTTPException(404)
         
         update_product_dict = update_product.dict(
@@ -143,7 +143,7 @@ class ProductsService:
         product_id: int
     ):
         if not self.current_user or \
-            not 'edit' in self.current_user.scopes:
+            (self.current_user and not 'edit' in self.current_user.scopes):
             raise HTTPException(404)
 
         await self.db_conn.execute(
