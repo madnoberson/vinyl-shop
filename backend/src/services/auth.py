@@ -1,8 +1,10 @@
+from datetime import datetime, timedelta
+
 from fastapi import HTTPException, Depends
 from fastapi.security import OAuth2PasswordBearer
 from asyncpg import Connection, UniqueViolationError
 from pydantic import ValidationError
-from jose import jwt, JWTError
+from jose import jwt, JWTError, ExpiredSignatureError
 from passlib.hash import bcrypt
 
 from ..schemas.users import BasicUser
@@ -125,8 +127,10 @@ class AuthService:
     ) -> Token:
         """Создаёт access token"""
 
+        now = datetime.utcnow()
         payload = {
-            "user": user_data,
+            "exp": now + timedelta(settings.jwt_expires),
+            "user": user_data
         }
 
         token = jwt.encode(
@@ -138,7 +142,7 @@ class AuthService:
         return Token(
             access_token=token
         )
-    
+
     @staticmethod
     def validate_token(
         token: str
@@ -162,9 +166,11 @@ class AuthService:
 
             user = BasicUser.parse_obj(
                 payload.get('user')
-            )
+            )    
         except (JWTError, ValidationError):
             raise exception
+        except ExpiredSignatureError:
+            pass
         
         return user
     

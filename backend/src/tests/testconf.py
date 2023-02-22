@@ -10,7 +10,7 @@ from ..database import (
 )
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture(scope='class')
 async def client() -> AsyncClient:
     async with AsyncClient(
         app=app, base_url="http://test"
@@ -18,7 +18,7 @@ async def client() -> AsyncClient:
         yield client
 
 
-@pytest.fixture(scope='function', autouse=True)
+@pytest.fixture(scope='class', autouse=True)
 async def refresh_db() -> None:
     try:
         await clean_up_db()
@@ -30,30 +30,23 @@ async def refresh_db() -> None:
 
 
 @pytest.fixture
-async def fake_user_1() -> dict:
-    return {
-        "name": "john",
-        "last_name": "doe"
-    }
-
-
-@pytest.fixture
-async def fake_user_2() -> dict:
-    return {
-        "name": "jane",
-        "last_name": "doe"
-    }
-
-
-@pytest.fixture
 async def fake_product() -> dict:
     return {
         "name": "In the Court of the Crimson King "
     }
 
+@pytest.fixture
+async def fake_user() -> dict:
+    return  {
+        "id": 1,
+        "first_name": "john",
+        "last_name": "doe",
+        "email": "john@doe.com",
+    }
+
 
 @pytest.fixture
-async def token_with_edit_scope() -> str:
+async def token_with_no_scopes() -> str:
     pass
 
 
