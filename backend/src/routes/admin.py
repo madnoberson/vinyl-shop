@@ -7,7 +7,7 @@ from ..services.admin import AdminService
 
 router = APIRouter(
     prefix='/admin',
-    tags='admin'
+    tags=['admin']
 )
 
 

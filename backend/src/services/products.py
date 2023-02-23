@@ -1,14 +1,18 @@
+from datetime import datetime
+
 from fastapi import HTTPException, Depends
 from asyncpg import Connection
 
 from ..schemas.products import (
-    BasicProdcut,
+    BasicProduct,
     BasicProductOut,
     Product,
     ProductIn,
     ProductOut,
     ProductUpdate,
-    Update
+    ProductUpdateIn,
+    ProductUpdateOut
+
 )
 from ..schemas.users import BasicUser
 
@@ -36,13 +40,23 @@ class ProductsService:
             create_product.dict(exclude_unset=True)
         )
 
+        print(
+            f"""
+                INSERT INTO products
+                {columns}
+                VALUES
+                {values}
+                RETURNING id, name
+            """
+        )
+
         product_record = await self.db_conn.fetchrow(
             f"""
                 INSERT INTO products
                 {columns}
                 VALUES
                 {values}
-                RETURNING name
+                RETURNING id, name
             """
         )
 
@@ -57,7 +71,7 @@ class ProductsService:
     async def get_basic_product(
         self,
         product_id: int
-    ) -> BasicProdcut:
+    ) -> BasicProduct:
         product_record = await self.db_conn.fetchrow(
             f"SELECT * FROM get_basic_product({product_id})"
         )
@@ -65,7 +79,7 @@ class ProductsService:
         if not product_record:
             raise HTTPException(404)
         
-        product = BasicProdcut.parse_obj(dict(product_record))
+        product = BasicProduct.parse_obj(dict(product_record))
 
         return BasicProductOut(
             product=product
@@ -92,7 +106,7 @@ class ProductsService:
     async def update_product(
         self,
         product_id: int,
-        update_product: ProductUpdate
+        update_product: ProductUpdateIn
     ) -> ProductOut:
         update_product_dict = update_product.dict(
             exclude_unset=True
@@ -101,36 +115,55 @@ class ProductsService:
         update_description = update_product_dict.pop('description')
 
         columns, values = sql_utils.dict_to_sql_columns_and_values(
-            update_product_dict
+            update_product_dict, mode='update'
         )
 
-        records = await self.db_conn.fetch(
-            f"""
-                UPDATE products
-                SET {columns} = {values}
-                WHERE products.id = {product_id}
-                RETURNING *;
+        async with self.db_conn.transaction():
+            product_record = await self.db_conn.fetchrow(
+                f"""
+                    UPDATE products
+                    SET {columns} = {values}
+                    WHERE products.id = {product_id}
+                    RETURNING *
+                    ;
+                """
+            )
 
-                INSERT INTO products_updates
-                (product_id, description, created_by)
-                VALUES
-                (
-                    {product_id},
-                    '{update_description}',
-                    {self.superuser.id}
-                )
-                RETURNING description,
-                          created_by
-                          datetime AS created_at;
-            """
-        )
+            created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        product = Product.parse_obj(records[0])
-        update = Update.parse_obj(records[1])
+            update_record = await self.db_conn.fetchrow(
+                f"""
+                    INSERT INTO products_updates
+                    (
+                        product_id,
+                        description,
+                        created_by,
+                        created_at
+                    )
+                    VALUES
+                    (
+                        {product_id},
+                        '{update_description}',
+                        {self.current_user.id},
+                        '{created_at}'
+                        
+                    )
+                    RETURNING description,
+                              created_by,
+                              created_at
+                    ;
+                """
+            )
 
-        return ProductOut(
+
+        product = Product.parse_obj(product_record)
+        update = ProductUpdate.parse_obj(update_record)
+
+        print(product, update)
+
+        return ProductUpdateOut(
             product=product,
-            updates=update
+            update=update
         )
     
     @scopes_required(scopes=['edit'])
@@ -138,10 +171,12 @@ class ProductsService:
         self,
         product_id: int
     ):
-        await self.db_conn.execute(
+        status = await self.db_conn.execute(
             f"""
                 DELETE
                 FROM products
                 WHERE products.id = {product_id}
             """
         )
+
+        print(status)

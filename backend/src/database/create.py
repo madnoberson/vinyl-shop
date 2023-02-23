@@ -28,7 +28,7 @@ async def create_tables() -> None:
                 product_id INTEGER REFERENCES products (id),
                 created_by INTEGER REFERENCES superusers (user_id),
                 description TEXT NOT NULL,
-                datetime TIMESTAMP NOT NULL DEFAULT 'now'
+                created_at TIMESTAMP NOT NULL DEFAULT 'now'
             );
         """
     )

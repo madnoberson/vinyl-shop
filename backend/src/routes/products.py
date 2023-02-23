@@ -5,7 +5,8 @@ from ..schemas.products import (
     BasicProductOut,
     ProductIn,
     ProductOut,
-    ProductUpdate
+    ProductUpdateIn,
+    ProductUpdateOut
 )
 
 from ..services.products import ProductsService
@@ -59,14 +60,14 @@ async def get_product(
 
 @router.patch(
     '/{product_id}/',
-    response_model=ProductOut,
+    response_model=ProductUpdateOut,
     tags=['admin']
 )
 async def update_product(
     product_id: int,
-    update_product: ProductUpdate,
+    update_product: ProductUpdateIn,
     products_service: ProductsService = Depends()
-) -> ProductOut:
+) -> ProductUpdateOut:
     return await products_service.update_product(
         product_id=product_id,
         update_product=update_product

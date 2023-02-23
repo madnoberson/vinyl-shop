@@ -112,7 +112,7 @@ class AuthService:
         user_dict = dict(user_record)
 
         scopes = []
-        if user_dict['scopes']:
+        if user_dict.get('scopes'):
             scopes = get_scopes_from_scopes_sum(
                 scopes_sum=user_dict['scopes']
             )
