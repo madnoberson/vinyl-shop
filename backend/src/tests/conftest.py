@@ -15,28 +15,43 @@ def anyio_backend() -> str:
     return "asyncio"
 
 
-@pytest.fixture(scope='session')
-async def fake_product() -> dict:
-    return {
-        "name": "In the Court of the Crimson King "
-    }
-
-@pytest.fixture(scope='session')
-async def fake_user() -> dict:
-    return  {
-        "id": 1,
-        "first_name": "john",
-        "last_name": "doe",
-        "email": "john@doe.com",
-    }
-
-
 @pytest.fixture(scope='class')
 async def client() -> AsyncClient:
     async with AsyncClient(
         app=app, base_url="http://test"
     ) as client:
         yield client
+
+
+@pytest.fixture(scope='class')
+async def fake_user_token(
+    client: AsyncClient
+) -> str:
+    fake_user_data = {
+        "first_name": "john",
+        "last_name": "doe",
+        "email": "john@doe.com",
+        "password": "supersecretpassword"
+    }
+    response = await client.post(
+        '/sign_up/',
+        json=fake_user_data
+    )
+
+    return response.json()['access_token']
+
+
+@pytest.fixture(scope='class')
+async def fake_user() -> dict:
+    return  {
+        "user": {
+            "id": 1,
+            "first_name": "john",
+            "last_name": "doe",
+            "email": "john@doe.com",
+            "wishlist_count": 0
+        }
+    }
 
 
 @pytest.fixture(scope='class', autouse=True)

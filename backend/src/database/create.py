@@ -30,6 +30,10 @@ async def create_tables() -> None:
                 description TEXT NOT NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT 'now'
             );
+            CREATE TABLE IF NOT EXISTS users_wishes (
+                user_id: INTEGER REFERENCES users (id),
+                product_id INTEGER REFERENCES products (id)
+            );
         """
     )
 
@@ -58,7 +62,8 @@ async def create_functions() -> None:
                 FROM
                     users
                 WHERE
-                    users.id = user_id;
+                    users.id = user_id
+                LIMIT 1;
             END; $$
             LANGUAGE plpgsql;
 
@@ -76,7 +81,8 @@ async def create_functions() -> None:
                 FROM
                     products
                 WHERE 
-                    products.id = product_id;
+                    products.id = product_id
+                LIMIT 1;
             END; $$
             LANGUAGE plpgsql;
         """

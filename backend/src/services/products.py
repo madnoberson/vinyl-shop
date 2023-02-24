@@ -90,7 +90,15 @@ class ProductsService:
         product_id: int
     ) -> ProductOut:
         product_record = await self.db_conn.fetchrow(
-            f"SELECT * FROM products WHERE id = {product_id}"
+            f"""
+                SELECT
+                    *
+                FROM
+                    products
+                WHERE
+                    products.id = {product_id}
+                LIMIT 1
+            """
         )
 
         if not product_record:
@@ -125,7 +133,6 @@ class ProductsService:
                     SET {columns} = {values}
                     WHERE products.id = {product_id}
                     RETURNING *
-                    ;
                 """
             )
 
@@ -151,15 +158,12 @@ class ProductsService:
                     RETURNING description,
                               created_by,
                               created_at
-                    ;
                 """
             )
 
 
         product = Product.parse_obj(product_record)
         update = ProductUpdate.parse_obj(update_record)
-
-        print(product, update)
 
         return ProductUpdateOut(
             product=product,

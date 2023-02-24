@@ -6,5 +6,7 @@ class Settings(BaseSettings):
     jwt_algorithm: str = 'HS256'
     jwt_expires: int = 24 #Hours
 
+    user_wishlist_elems_per_page: int = 10
+
 
 settings = Settings()

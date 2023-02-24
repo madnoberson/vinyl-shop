@@ -1,5 +1,8 @@
+from typing import Optional
+
 from pydantic import BaseModel
 
+from .products import BasicProduct
 
 class BasicUser(BaseModel):
     id: int
@@ -8,3 +11,22 @@ class BasicUser(BaseModel):
     email: str
     
     scopes: list[str]
+
+
+class User(BasicUser):
+    wishlist_count: int
+
+
+class UserWishlist(BaseModel):
+    products: list[BasicProduct]
+
+
+class UserWishlistOut(BaseModel):
+    wishlist: UserWishlist
+
+
+class UserOut(BaseModel):
+    user: User
+    wishlist: UserWishlist
+
+
