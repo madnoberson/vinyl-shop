@@ -14,10 +14,11 @@ async def create_tables() -> None:
                 email VARCHAR(256) NOT NULL UNIQUE,
                 first_name VARCHAR(32) NOT NULL,
                 last_name VARCHAR(32) NOT NULL,
-                password VARCHAR(256) NOT NULL
+                password VARCHAR(256) NOT NULL,
+                wishlist_count INTEGER DEFAULT 0
             );
             CREATE TABLE IF NOT EXISTS superusers (
-                user_id INTEGER REFERENCES users (id) UNIQUE,
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE UNIQUE,
                 scopes INTEGER NOT NULL
             );
             CREATE TABLE IF NOT EXISTS products (
@@ -25,14 +26,14 @@ async def create_tables() -> None:
                 name VARCHAR(128) NOT NULL
             );
             CREATE TABLE IF NOT EXISTS products_updates (
-                product_id INTEGER REFERENCES products (id),
-                created_by INTEGER REFERENCES superusers (user_id),
+                product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+                created_by INTEGER REFERENCES superusers(user_id) ON DELETE CASCADE,
                 description TEXT NOT NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT 'now'
             );
             CREATE TABLE IF NOT EXISTS users_wishes (
-                user_id: INTEGER REFERENCES users (id),
-                product_id INTEGER REFERENCES products (id)
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                product_id INTEGER REFERENCES products(id) ON DELETE CASCADE
             );
         """
     )

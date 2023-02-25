@@ -1,99 +1,106 @@
-import pytest
-from httpx import AsyncClient
+# import pytest
+# from pytest_lazyfixture import lazy_fixture
+# from httpx import AsyncClient
 
 
-@pytest.fixture(scope='class')
-def fake_user_wishlist() -> dict:
-    return {
-        "wishlist": {
-            "products": [
-                {
-                    "id": 1,
-                    "name": "In the Court of the Crimson King"
-                }
-            ]
-        }
-    }
+# @pytest.fixture(scope='class')
+# def fake_user_wishlist() -> dict:
+#     return {
+#         "wishlist": {
+#             "products": [
+#                 {
+#                     "id": 1,
+#                     "name": "In the Court of the Crimson King"
+#                 }
+#             ]
+#         }
+#     }
 
-@pytest.mark.anyio
-class TestUsersService:
-    def __init__(
-        self,
-        client: AsyncClient,
-        fake_user_token: str,
-        fake_user: dict
-    ):
-        self.client = client
-        self.fake_user_token = fake_user_token
-        self.fake_user = fake_user
 
-    async def test_getting_user_with_no_token(self):
-        response = await self.client.get(
-            url='/user/'
-        )
+# @pytest.mark.anyio
+# class TestUsersService:
 
-        assert response.status_code == 401
+#     @pytest.mark.parametrize(
+#         "fake_token, expected_status_code, fake_user_data",
+#         [
+#             (lazy_fixture("fake_user_token"), 200, lazy_fixture("fake_user")),
+#             (None, 401, None)
+#         ]
+#     )
+#     async def test_getting_user(
+#         self,
+#         expected_status_code: int,
+#         client: AsyncClient,
+#         fake_token: str | None,
+#         fake_user_data: dict | None,
+#     ):
+#         headers = None
+#         if fake_token:
+#             headers={
+#                 "Authorization": f"Bearer {fake_token}"
+#             }
 
-    async def test_getting_user_with_token(self):
-        response = await self.client.get(
-            url='/user/',
-            headers={
-                "Authorization": f"Bearer {self.fake_user_token}"
-            }
-        )
+#         response = await client.get(
+#             url='/user/',
+#             headers=headers  
+#         )
 
-        assert response.status_code == 200
-        assert response.json() == self.fake_user
+#         assert response.status_code == expected_status_code
 
-    @pytest.mark.parametrize(
-        "fake_product_id,expected_status_code",
-        [(1, 200), (2, 404), (-1, 422), (1, 409)]
-    )
-    async def test_adding_product_to_user_wishlist(
-        self,
-        fake_product_id: int,
-        expected_status_code: dict
-    ):
-        response = await self.client.post(
-            url='/users/wishlist/',
-            params={
-                "product_id": fake_product_id
-            },
-            headers={
-                "Authorization": f"Bearer {self.fake_user_token}"
-            }
-        )
+#         if fake_user_data:
+#             assert response.json() == fake_user_data
 
-        assert response.status_code == expected_status_code
+    # @pytest.mark.parametrize(
+    #     "fake_product_id,expected_status_code",
+    #     [(1, 200), (2, 404), (-1, 422), (1, 409)]
+    # )
+    # async def test_adding_product_to_user_wishlist(
+    #     self,
+    #     client: AsyncClient,
+    #     fake_product_id: int,
+    #     expected_status_code: dict,
+    #     fake_user_token: str
+    # ):
+    #     response = await client.post(
+    #         url='/users/wishlist/',
+    #         params={
+    #             "product_id": fake_product_id
+    #         },
+    #         headers={
+    #             "Authorization": f"Bearer {fake_user_token}"
+    #         }
+    #     )
 
-    async def test_getting_wishlist(self):
-        response = await self.client.get(
-            url='/users/wishlist/',
-            headers={
-                "Authorization": f"Bearer {self.fake_user_token}"
-            }
-        )
+    #     assert response.status_code == expected_status_code
 
-        assert response.status_code == 200
-        assert response.json() == {}
+    # async def test_getting_wishlist(self):
+    #     response = await self.client.get(
+    #         url='/users/wishlist/',
+    #         headers={
+    #             "Authorization": f"Bearer {self.fake_user_token}"
+    #         }
+    #     )
 
-    @pytest.mark.parametrize(
-        "fake_product_id,expected_status_code",
-        [(1, 200), (2, 404), (-1, 422)]
-    )
-    async def test_deleting_product_from_user_wishlist(
-        self,
-        fake_product_id: int,
-        expected_status_code: dict
-    ):
-        response = await self.client.delete(
-            '/users/wishlist/',
-            params={
-                "product_id": fake_product_id
-            },
-            headers={
-                "Authorization": f"Bearer {self.fake_user_token}"
-            }
-        )
+    #     assert response.status_code == 200
+    #     assert response.json() == {}
 
-        assert response.status_code == expected_status_code
+    # @pytest.mark.parametrize(
+    #     "fake_product_id,expected_status_code",
+    #     [(1, 200), (2, 404), (-1, 422)]
+    # )
+    # async def test_deleting_product_from_user_wishlist(
+    #     self,
+    #     fake_product_id: int,
+    #     expected_status_code: dict
+    # ):
+    #     response = await self.client.delete(
+    #         '/users/wishlist/',
+    #         params={
+    #             "product_id": fake_product_id
+    #         },
+    #         headers={
+    #             "Authorization": f"Bearer {self.fake_user_token}"
+    #         }
+    #     )
+
+    #     assert response.status_code == expected_status_code

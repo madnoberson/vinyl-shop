@@ -1,20 +1,9 @@
 from datetime import datetime
 
 import pytest
+from pytest_lazyfixture import lazy_fixture
 from httpx import AsyncClient
 
-from ..services.auth import AuthService
-
-
-@pytest.fixture(scope='class')
-async def token_with_edit_scope(
-    fake_user: dict
-):
-    fake_user_data = fake_user | {'scopes': ['edit']}
-    token = AuthService.create_token(fake_user_data)
-
-    return token.access_token
-    
 
 @pytest.fixture
 def create_fake_product_input() -> dict:
@@ -50,7 +39,7 @@ def update_fake_product_output():
             "name": "Red"
         },
         "update": {
-            "created_by": 1,
+            "created_by": 2,
             "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "description": "Изменил название альбома"
         }
@@ -60,90 +49,194 @@ def update_fake_product_output():
 @pytest.mark.anyio
 class TestProductsCrud:
 
-    async def test_creating_product_with_no_scope(
+    @pytest.mark.parametrize(
+        [
+            "input",
+            "expected_status_code",
+            "expected_output",
+            "token"
+        ],
+        [
+            (
+                lazy_fixture("create_fake_product_input"),
+                201,
+                lazy_fixture("create_fake_product_output"),
+                lazy_fixture("token_with_edit_scope")
+            ),
+            (
+                lazy_fixture("create_fake_product_input"),
+                403,
+                None,
+                None
+            ),
+            (
+                lazy_fixture("create_fake_product_input"),
+                403,
+                None,
+                lazy_fixture("token_with_no_scopes")
+            ),
+            (
+                {"data": "some invalid data"},
+                422,
+                None,
+                lazy_fixture("token_with_edit_scope")
+            )
+        ]
+    )
+    async def test_creating_poduct(
         self,
         client: AsyncClient,
-        create_fake_product_input: dict
+        input: dict,
+        expected_status_code: int,
+        expected_output: dict | None,
+        token: str | None
     ):
-        response = await client.post(
-            url='/products/',
-            json=create_fake_product_input
-        )
-
-        assert response.status_code == 404
-    
-    async def test_creating_product_with_scope(
-        self,
-        client: AsyncClient,
-        create_fake_product_input: dict,
-        create_fake_product_output: dict,
-        token_with_edit_scope: str
-    ):
-        response = await client.post(
-            url='/products/',
-            json=create_fake_product_input,
-            headers={
-                "Authorization": f"Bearer {token_with_edit_scope}"
+        headers = None
+        if token:
+            headers = {
+                "Authorization": f"Bearer {token}"
             }
-        )
 
-        assert response.status_code == 200
-        assert response.json() == create_fake_product_output
-    
-    async def test_updating_product_with_no_scope(
+        response = await client.post(
+                url='/products/',
+                json=input,
+                headers=headers
+            )
+        
+        assert response.status_code == expected_status_code
+
+        if expected_output:
+            assert response.json() == expected_output
+
+    @pytest.mark.parametrize(
+        [
+            "fake_product_id",
+            "input",
+            "expected_status_code",
+            "expected_output",
+            "token"
+        ],
+        [
+            (
+               1,
+               lazy_fixture("update_fake_product_input"),
+               200,
+               lazy_fixture("update_fake_product_output"),
+               lazy_fixture("token_with_edit_scope") 
+            ),
+            (
+                -1,
+                lazy_fixture("update_fake_product_input"),
+                404,
+                None,
+                lazy_fixture("token_with_edit_scope")
+            ),
+            (
+                'first',
+                lazy_fixture("update_fake_product_input"),
+                422,
+                None,
+                lazy_fixture("token_with_edit_scope")
+            ),
+            (
+                1,
+                lazy_fixture("update_fake_product_input"),
+                403,
+                None,
+                None
+            ),
+            (
+                1,
+                lazy_fixture("update_fake_product_input"),
+                403,
+                None,
+                lazy_fixture("token_with_no_scopes")
+            ),
+            (
+               1,
+               {"data": "some invalid data"},
+               422,
+               None,
+               lazy_fixture("token_with_edit_scope") 
+            )
+        ]
+    )
+    async def test_updating_product(
         self,
         client: AsyncClient,
-        update_fake_product_input: dict,
-        fake_product_id: int = 1
+        fake_product_id: int,
+        input: dict,
+        expected_status_code: int,
+        expected_output: dict | None,
+        token: str | None
     ):
+        headers = None
+        if token:
+            headers = {
+                "Authorization": f"Bearer {token}"
+            }
+        
         response = await client.patch(
             url=f'/products/{fake_product_id}/',
-            json=update_fake_product_input
+            json=input,
+            headers=headers
         )
 
-        assert response.status_code == 404
+        assert response.status_code == expected_status_code
+
+        if expected_output:
+            assert response.json() == expected_output
     
-    async def test_updating_product_with_scope(
+    @pytest.mark.parametrize(
+        [   
+            "fake_product_id",
+            "expected_status_code",
+            "token"
+        ],
+        [
+            (
+                1,
+                403,
+                lazy_fixture("token_with_no_scopes")
+            ),
+            (
+                1,
+                403,
+                None
+            ),
+            (
+                1,
+                204,
+                lazy_fixture("token_with_edit_scope")
+            ),
+            (
+               -1,
+               404,
+               lazy_fixture("token_with_edit_scope")
+            ),
+            (
+                'first',
+                422,
+                lazy_fixture("token_with_edit_scope")   
+            )         
+        ]
+    )
+    async def test_deleting_product(
         self,
         client: AsyncClient,
-        update_fake_product_input: dict,
-        update_fake_product_output: dict,
-        token_with_edit_scope: str,
-        fake_product_id: int = 1
+        fake_product_id: int,
+        expected_status_code: int,
+        token: str | None
     ):
-        response = await client.patch(
-            url=f'/products/{fake_product_id}/',
-            json=update_fake_product_input,
-            headers={
-                "Authorization": f"Bearer {token_with_edit_scope}"
+        headers = None
+        if token:
+            headers = {
+                "Authorization": f"Bearer {token}"
             }
-        )
-
-        assert response.status_code == 200
-        assert response.json() == update_fake_product_output
-    
-    async def test_deleting_product_with_no_edit_scope(
-        self,
-        client: AsyncClient,
-        fake_product_id: int = 1 
-    ):
-        response = await client.delete(
-            url=f'/products/{fake_product_id}/'
-        )
-
-        assert response.status_code == 404
-    
-    async def test_deleting_product_with_edit_scope(
-        self,
-        client: AsyncClient,
-        token_with_edit_scope: str,
-        fake_product_id: int = 1
-    ):
+        
         response = await client.delete(
             url=f'/products/{fake_product_id}/',
-            headers={
-                "Authorization": f"Bearer {token_with_edit_scope}"
-            }
+            headers=headers
         )
 
-        assert response.status_code == 200
+        assert response.status_code == expected_status_code

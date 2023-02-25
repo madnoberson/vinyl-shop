@@ -30,7 +30,7 @@ async def get_current_user(
 ) -> BasicUser:
     if not token:
         return None
-    
+
     return AuthService.validate_token(token)
 
 
@@ -66,9 +66,11 @@ class AuthService:
                         '{create_user.email}',
                         '{hashed_password}'
                     )
-                    RETURNING first_name,
-                              last_name,
-                              email
+                    RETURNING 
+                            id,
+                            first_name,
+                            last_name,
+                            email
                 """
             )
         except UniqueViolationError:
@@ -77,7 +79,9 @@ class AuthService:
                 detail="Введённый email уже используется"
             )
         
-        return self.create_token(dict(user_record))
+        user_dict = dict(user_record) | {"scopes": []}
+
+        return self.create_token(user_dict)
 
     async def sign_in(
         self,
@@ -99,8 +103,9 @@ class AuthService:
                 FROM
                      users
                 LEFT JOIN 
-                     superusers
-                     ON superusers.user_id = users.id
+                        superusers
+                     ON
+                        superusers.user_id = users.id
                 WHERE
                      users.email = '{user_data.email}'
             """
@@ -167,11 +172,12 @@ class AuthService:
             user = BasicUser.parse_obj(
                 payload.get('user')
             )    
-        except (JWTError, ValidationError):
+        except (JWTError, ValidationError) as e:
+            print(e)
             raise exception
         except ExpiredSignatureError:
             pass
-        
+
         return user
     
     @staticmethod

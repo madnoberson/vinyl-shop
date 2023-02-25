@@ -10,6 +10,8 @@ def dict_to_sql_columns_and_values(
         elif isinstance(value, str):
             value = value.replace("'", "''")
             values.append(f"'{value}'")
+        elif isinstance(value, (float, int)):
+            values.append(str(value))
     
     if mode == 'update' and len(columns) == 1:
         return (

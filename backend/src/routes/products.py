@@ -21,7 +21,8 @@ router = APIRouter(
 @router.post(
     '/',
     response_model=ProductOut,
-    tags=['admin']
+    tags=['admin'],
+    status_code=201
 )
 async def create_product(
     create_product: ProductIn,
@@ -76,12 +77,13 @@ async def update_product(
 
 @router.delete(
     '/{product_id}/',
-    tags=['admin']
+    tags=['admin'],
+    status_code=204
 )
 async def delete_product(
     product_id: int,
     products_service: ProductsService = Depends()
 ):
-    return await products_service.delete_product(
+    await products_service.delete_product(
         product_id=product_id
     )

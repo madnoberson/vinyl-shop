@@ -19,11 +19,11 @@ def scopes_required(scopes: list[str]):
             current_user: BasicUser = service.current_user
 
             if not current_user:
-                raise HTTPException(404)
+                raise HTTPException(403)
 
             for scope in scopes:
                 if scope not in current_user.scopes:
-                    raise HTTPException(404)
+                    raise HTTPException(403)
             
             return func(*args, **kwargs)
         
@@ -72,3 +72,4 @@ class AdminService:
         return SuperUserOut(
             superuser=superuser
         )
+    

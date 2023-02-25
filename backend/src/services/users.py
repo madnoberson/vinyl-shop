@@ -33,16 +33,25 @@ class UsersService:
         user_record = await self.db_conn.fetchrow(
             f"""
                 SELECT
-                    *
+                    users.*,
+                    array_agg(users_wishes.product_id) AS wishlist
                 FROM
                     users
+                JOIN
+                    users_wishes
+                    ON
+                    users_wishes.user_id = users.id
                 WHERE
                     users.id = {self.current_user.id}
+                GROUP BY
+                    users.id
                 LIMIT 1
             """
         )
 
-        user_dict = dict(user_record)
+        user_dict = dict(user_record) | {"scopes": []}
+        print(user_dict)
+
         user = User.parse_obj(user_dict)
 
         return UserOut(

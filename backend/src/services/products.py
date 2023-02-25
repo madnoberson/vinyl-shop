@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from fastapi import HTTPException, Depends
-from asyncpg import Connection
+from asyncpg import Connection, ForeignKeyViolationError
 
 from ..schemas.products import (
     BasicProduct,
@@ -38,16 +38,6 @@ class ProductsService:
     ) -> ProductOut:
         columns, values = sql_utils.dict_to_sql_columns_and_values(
             create_product.dict(exclude_unset=True)
-        )
-
-        print(
-            f"""
-                INSERT INTO products
-                {columns}
-                VALUES
-                {values}
-                RETURNING id, name
-            """
         )
 
         product_record = await self.db_conn.fetchrow(
@@ -126,41 +116,44 @@ class ProductsService:
             update_product_dict, mode='update'
         )
 
-        async with self.db_conn.transaction():
-            product_record = await self.db_conn.fetchrow(
-                f"""
-                    UPDATE products
-                    SET {columns} = {values}
-                    WHERE products.id = {product_id}
-                    RETURNING *
-                """
-            )
+        try:
+            async with self.db_conn.transaction():
+                product_record = await self.db_conn.fetchrow(
+                    f"""
+                        UPDATE products
+                        SET {columns} = {values}
+                        WHERE products.id = {product_id}
+                        RETURNING *
+                    """
+                )
+                
 
-            created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-            update_record = await self.db_conn.fetchrow(
-                f"""
-                    INSERT INTO products_updates
-                    (
-                        product_id,
-                        description,
-                        created_by,
-                        created_at
-                    )
-                    VALUES
-                    (
-                        {product_id},
-                        '{update_description}',
-                        {self.current_user.id},
-                        '{created_at}'
-                        
-                    )
-                    RETURNING description,
-                              created_by,
-                              created_at
-                """
-            )
-
+                created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                update_record = await self.db_conn.fetchrow(
+                    f"""
+                        INSERT INTO products_updates
+                        (
+                            product_id,
+                            description,
+                            created_by,
+                            created_at
+                        )
+                        VALUES
+                        (
+                            {product_id},
+                            '{update_description}',
+                            {self.current_user.id},
+                            '{created_at}'
+                            
+                        )
+                        RETURNING 
+                                description,
+                                created_by,
+                                created_at
+                    """
+                )
+        except ForeignKeyViolationError:
+            raise HTTPException(404)
 
         product = Product.parse_obj(product_record)
         update = ProductUpdate.parse_obj(update_record)
@@ -178,9 +171,13 @@ class ProductsService:
         status = await self.db_conn.execute(
             f"""
                 DELETE
-                FROM products
-                WHERE products.id = {product_id}
+                FROM
+                    products
+                WHERE
+                    products.id = {product_id}
             """
         )
 
-        print(status)
+        if status == "DELETE 0":
+            raise HTTPException(404)
+
