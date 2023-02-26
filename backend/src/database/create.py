@@ -15,7 +15,7 @@ async def create_tables() -> None:
                 first_name VARCHAR(32) NOT NULL,
                 last_name VARCHAR(32) NOT NULL,
                 password VARCHAR(256) NOT NULL,
-                wishlist_count INTEGER DEFAULT 0
+                wishes_count INTEGER DEFAULT 0
             );
             CREATE TABLE IF NOT EXISTS superusers (
                 user_id INTEGER REFERENCES users(id) ON DELETE CASCADE UNIQUE,

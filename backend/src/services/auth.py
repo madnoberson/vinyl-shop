@@ -87,11 +87,6 @@ class AuthService:
         self,
         user_data: UserSignIn
     ) -> Token:
-        exception = HTTPException(
-            status_code=401,
-            headers={"WWW-Authenticate": "Bearer"}
-        )
-
         user_record = await self.db_conn.fetchrow(
             f"""
                 SELECT 
@@ -112,19 +107,14 @@ class AuthService:
         )
 
         if not user_record:
-            raise exception
-        
-        user_dict = dict(user_record)
-
-        scopes = []
-        if user_dict.get('scopes'):
-            scopes = get_scopes_from_scopes_sum(
-                scopes_sum=user_dict['scopes']
+            raise HTTPException(
+                status_code=401,
+                headers={"WWW-Authenticate": "Bearer"}
             )
-        
-        user_dict['scopes'] = scopes
-        
-        return self.create_token(user_dict)
+
+        return self.create_token(
+            user_data=dict(user_record)
+        )
         
     @staticmethod
     def create_token(
@@ -157,11 +147,6 @@ class AuthService:
             о пользователе
         """
 
-        exception = HTTPException(
-            status_code=401,
-            headers={'WWW-Authenticate': 'Bearer'}
-        )
-
         try:
             payload = jwt.decode(
                 token=token,
@@ -174,7 +159,10 @@ class AuthService:
             )    
         except (JWTError, ValidationError) as e:
             print(e)
-            raise exception
+            raise HTTPException(
+                status_code=401,
+                headers={'WWW-Authenticate': 'Bearer'}
+            )
         except ExpiredSignatureError:
             pass
 

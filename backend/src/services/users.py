@@ -1,20 +1,18 @@
 from typing import Optional
 
 from fastapi import HTTPException, Depends
-from asyncpg import Connection
+from asyncpg import Connection, ForeignKeyViolationError
 
 from ..schemas.users import (
     BasicUser,
     User,
     UserOut,
-    UserWishlist,
-    UserWishlistOut
+    UserWishlist
 )
 from ..schemas.products import BasicProduct
 
 from .auth import get_current_user
 from ..database import get_db_conn
-from ..settings import settings
 
 
 class UsersService:
@@ -34,28 +32,28 @@ class UsersService:
             f"""
                 SELECT
                     users.*,
-                    array_agg(users_wishes.product_id) AS wishlist
+                    superusers.scopes
                 FROM
                     users
-                JOIN
-                    users_wishes
+                LEFT JOIN
+                    superusers
                     ON
-                    users_wishes.user_id = users.id
+                    superusers.user_id = users.id
                 WHERE
                     users.id = {self.current_user.id}
-                GROUP BY
-                    users.id
                 LIMIT 1
             """
         )
 
-        user_dict = dict(user_record) | {"scopes": []}
-        print(user_dict)
-
+        user_dict = dict(user_record)
+        user_dict.pop("password")
         user = User.parse_obj(user_dict)
 
+        wishlist = await self.get_wishlist()
+
         return UserOut(
-            user=user
+            user=user,
+            wishlist=wishlist
         )
 
     async def add_to_wishlist(
@@ -65,68 +63,71 @@ class UsersService:
         if not self.current_user:
             raise HTTPException(401)
         
-        await self.db_conn.execute(
-            f"""
-                INSERT INTO users_wishes
-                (
-                    product_id,
-                    user_id
+        async with self.db_conn.transaction():
+            try:
+                await self.db_conn.execute(
+                    f"""
+                        INSERT INTO users_wishes
+                        (
+                            product_id,
+                            user_id
+                        )
+                        VALUES
+                        (
+                            {product_id},
+                            {self.current_user.id}
+                        )
+                    """
                 )
-                VALUES
-                (
-                    {product_id},
-                    {self.current_user.id}
+            except ForeignKeyViolationError:
+                raise HTTPException(404)
+            
+            try:
+                await self.db_conn.execute(
+                    f"""
+                        UPDATE
+                            users
+                        SET
+                            wishes_count = wishes_count + 1
+                        WHERE
+                            id = {self.current_user.id}
+                    """
                 )
-            """
-        )
+            except ForeignKeyViolationError:
+                raise HTTPException(404)
         
     async def get_wishlist(
         self,
-        page: Optional[int] = 1
-    ) -> UserWishlistOut:
+        limit: Optional[int] = 10,
+        offset: Optional[int] = 0
+    ) -> UserWishlist:
         if not self.current_user:
             raise HTTPException(401)
 
-        elems_per_page = settings.user_wishlist_elems_per_page
-
-        wishes_records = await self.db_conn.fetch(
+        wishlist_products_records = await self.db_conn.fetch(
             f"""
-                WITH products_ids AS (
-                    SELECT
-                        users_wishes.product_id
-                    FROM
-                        users_wishes
-                    WHERE
-                        users_wishes.user_id = {self.current_user.id}
-                    LIMIT {elems_per_page}
-                    OFFSET {elems_per_page * (page - 1)}
-                )
                 SELECT
                     products.id,
                     products.name
                 FROM
+                    users_wishes
+                LEFT JOIN
                     products
+                    ON
+                    products.id = users_wishes.product_id
                 WHERE
-                    products.id IN products_ids
-                LIMIT {elems_per_page}
-                OFFSET {elems_per_page * (page - 1)}   
-            """
+                    users_wishes.user_id = {self.current_user.id}
+                LIMIT {limit}
+                OFFSET {offset}
+            """ 
         )
 
-        products = []
-        if wishes_records:
-            products = [
-                BasicProduct.parse_obj(dict(product))
-                for product in wishes_records
-            ]
+        wishlist_products = [
+            BasicProduct.parse_obj(dict(product))
+            for product in wishlist_products_records 
+        ]
 
-        wishlist = UserWishlist(
-            products=products
-        )
-
-        return UserWishlistOut(
-            wishlist=wishlist
-        )
+        return UserWishlist(products=wishlist_products)
     
     async def delete_from_wishlist(
         self,
@@ -135,17 +136,22 @@ class UsersService:
         if not self.current_user:
             raise HTTPException(401)
         
-        await self.db_conn.execute(
+        
+        status = await self.db_conn.execute(
             f"""
                 DELETE
                 FROM
-                    users_wishlists
+                    users_wishes
                 WHERE
-                    users_wishlists.user_id = {self.current_user.id}
+                    users_wishes.user_id = {self.current_user.id}
                     AND
-                    users_wishlists.product_id = {product_id}
+                    users_wishes.product_id = {product_id}
             """
         )
+
+        if status == "DELETE 0":
+            raise HTTPException(404)
+        
 
 
 

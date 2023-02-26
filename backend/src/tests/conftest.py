@@ -46,6 +46,12 @@ async def fake_users_data() -> list[dict[str, dict[str, str]]]:
             "last_name": "ivanov",
             "password": "secret",
             "scopes": []
+        },
+        "fred@nurk.com": {
+            "first_name": "fred",
+            "last_name": "nurk",
+            "password": "secret",
+            "scopes": []
         }
     }
 
@@ -161,3 +167,10 @@ async def token_with_no_scopes(
     users_tokens: dict
 ) -> str:
     return users_tokens['ivan@ivanov.com']
+
+
+@pytest.fixture(scope='module')
+async def token_with_no_scopes2(
+    users_tokens: dict
+) -> str:
+    return users_tokens['fred@nurk.com']

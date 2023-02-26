@@ -1,10 +1,11 @@
+from typing import Optional
+
 from fastapi import APIRouter, Depends
 
 from ..schemas.users import (
     UserOut,
-    UserWishlistOut
+    UserWishlist
 )
-
 from ..services.users import UsersService
 
 
@@ -25,32 +26,35 @@ async def get_user(
 
 
 @router.post(
-    '/wishlist/'
+    '/wishlist/',
+    status_code=201
 )
 async def add_to_wishlist(
    product_id: int,
    users_service: UsersService = Depends()
 ):
-    return await users_service.add_to_wishlist(
+    await users_service.add_to_wishlist(
         product_id=product_id
     )
 
 
 @router.get(
     '/wishlist/',
-    response_model=UserWishlistOut
+    response_model=UserWishlist
 )
 async def get_wishlist(
-    page: int = 1,
+    limit: Optional[int] = 10,
+    offset: Optional[int] = 0,
     users_service: UsersService = Depends()
-) -> UserWishlistOut:
+) -> UserWishlist:
     return await users_service.get_wishlist(
-        page=page
+        limit=limit, offset=offset
     )
 
 
 @router.delete(
     '/wishlist/',
+    status_code=204
 )
 async def delete_from_wishlist(
     product_id: int,
