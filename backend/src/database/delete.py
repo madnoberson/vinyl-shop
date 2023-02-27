@@ -14,12 +14,14 @@ async def clean_up_db() -> None:
                                 superusers,
                                 products,
                                 products_updates,
-                                users_wishes
+                                users_counts,
+                                users_wishlist_products,
+                                users_cart_products
                                 CASCADE;
             DROP SEQUENCE IF EXISTS
-                                   products,
-                                   users
-                                   CASCADE;
+                                products,
+                                users
+                                CASCADE;
         """
     )
 

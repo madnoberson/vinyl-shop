@@ -46,13 +46,11 @@ class ProductsService:
                 {columns}
                 VALUES
                 {values}
-                RETURNING id, name
+                RETURNING *
             """
         )
 
-        product = Product.parse_obj(
-            dict(product_record)
-        )
+        product = Product.parse_obj(dict(product_record))
 
         return ProductOut(
             product=product

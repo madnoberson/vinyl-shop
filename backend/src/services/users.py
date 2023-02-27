@@ -7,7 +7,8 @@ from ..schemas.users import (
     BasicUser,
     User,
     UserOut,
-    UserWishlist
+    UserWishlist,
+    UserCart
 )
 from ..schemas.products import BasicProduct
 
@@ -59,7 +60,7 @@ class UsersService:
     async def add_to_wishlist(
         self,
         product_id: int
-    ):
+    ) -> None:
         if not self.current_user:
             raise HTTPException(401)
         
@@ -67,7 +68,7 @@ class UsersService:
             try:
                 await self.db_conn.execute(
                     f"""
-                        INSERT INTO users_wishes
+                        INSERT INTO users_wishlist_products
                         (
                             product_id,
                             user_id
@@ -81,20 +82,7 @@ class UsersService:
                 )
             except ForeignKeyViolationError:
                 raise HTTPException(404)
-            
-            try:
-                await self.db_conn.execute(
-                    f"""
-                        UPDATE
-                            users
-                        SET
-                            wishes_count = wishes_count + 1
-                        WHERE
-                            id = {self.current_user.id}
-                    """
-                )
-            except ForeignKeyViolationError:
-                raise HTTPException(404)
+
         
     async def get_wishlist(
         self,
@@ -110,13 +98,13 @@ class UsersService:
                     products.id,
                     products.name
                 FROM
-                    users_wishes
+                    users_wishlist_products
                 LEFT JOIN
                     products
                     ON
-                    products.id = users_wishes.product_id
+                    products.id = users_wishlist_products.product_id
                 WHERE
-                    users_wishes.user_id = {self.current_user.id}
+                    users_wishlist_products.user_id = {self.current_user.id}
                 LIMIT {limit}
                 OFFSET {offset}
             """ 
@@ -127,31 +115,141 @@ class UsersService:
             for product in wishlist_products_records 
         ]
 
-        return UserWishlist(products=wishlist_products)
+        wishlist_products_count = await self.db_conn.fetchval(
+            f"""
+                SELECT
+                    users_counts.wishlist_products_count
+                FROM
+                    users_counts
+                WHERE
+                    users_counts.user_id = {self.current_user.id}
+            """
+        )
+
+        return UserWishlist(
+            products=wishlist_products,
+            products_count=wishlist_products_count
+        )
     
     async def delete_from_wishlist(
         self,
         product_id: int
-    ): 
+    ) -> None: 
         if not self.current_user:
             raise HTTPException(401)
         
         
-        status = await self.db_conn.execute(
+        async with self.db_conn.transaction():
+            status = await self.db_conn.execute(
+                f"""
+                    DELETE
+                    FROM
+                        users_wishlist_products
+                    WHERE
+                        users_wishlist_products.user_id = {self.current_user.id}
+                        AND
+                        users_wishlist_products.product_id = {product_id}
+                """
+            )
+
+            if status == "DELETE 0":
+                raise HTTPException(404)
+
+
+    async def add_to_cart(
+        self,
+        product_id: int
+    ) -> None:
+        if not self.current_user:
+            raise HTTPException(401)
+        
+        async with self.db_conn.transaction():
+            try:
+                await self.db_conn.execute(
+                    f"""
+                        INSERT INTO users_cart_products
+                        (
+                            product_id,
+                            user_id
+                        )
+                        VALUES
+                        (
+                            {product_id},
+                            {self.current_user.id}
+                        )
+                    """
+                )
+            except ForeignKeyViolationError:
+                raise HTTPException(404)
+            
+
+    async def get_cart(
+        self,
+        limit: Optional[int] = 10,
+        offset: Optional[int] = 0
+    ) -> UserCart:
+        if not self.current_user:
+            raise HTTPException(401)
+        
+        cart_products_records = await self.db_conn.fetch(
             f"""
-                DELETE
+                SELECT
+                    products.id,
+                    products.name
                 FROM
-                    users_wishes
+                    users_cart_products
+                LEFT JOIN
+                    products
+                    ON
+                    products.id = users_cart_products.product_id
                 WHERE
-                    users_wishes.user_id = {self.current_user.id}
-                    AND
-                    users_wishes.product_id = {product_id}
+                    users_cart_products.user_id = {self.current_user.id}
+                LIMIT {limit}
+                OFFSET {offset}
+            """ 
+        )
+
+        cart_products = [
+            BasicProduct.parse_obj(dict(product))
+            for product in cart_products_records 
+        ]
+
+        cart_products_count = await self.db_conn.fetchval(
+            f"""
+                SELECT
+                    users_counts.cart_products_count
+                FROM
+                    users_counts
+                WHERE
+                    users_counts.user_id = {self.current_user.id}
             """
         )
 
-        if status == "DELETE 0":
-            raise HTTPException(404)
+        return UserCart(
+            products=cart_products,
+            products_count=cart_products_count
+        )
+    
+    async def delete_from_cart(
+        self,
+        product_id: int
+    ) -> None:
+        if not self.current_user:
+            raise HTTPException(401)
         
+        async with self.db_conn.transaction():
+            status = await self.db_conn.execute(
+                f"""
+                    DELETE
+                    FROM
+                        users_cart_products
+                    WHERE
+                        users_cart_products.user_id = {self.current_user.id}
+                        AND
+                        users_cart_products.product_id = {product_id}
+                """
+            )
 
-
-
+            if status == "DELETE 0":
+                raise HTTPException(404)
+        

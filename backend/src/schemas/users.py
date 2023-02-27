@@ -22,14 +22,18 @@ class BasicUser(BaseModel):
         return get_scopes_from_scopes_sum(scopes_sum)
 
 
-
-
 class User(BasicUser):
-    wishes_count: int
+    pass
 
 
 class UserWishlist(BaseModel):
     products: list[BasicProduct]
+    products_count: int
+
+
+class UserCart(BaseModel):
+    products: list[BasicProduct]
+    products_count: int
 
 
 class UserOut(BaseModel):

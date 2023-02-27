@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends
 
 from ..schemas.users import (
     UserOut,
-    UserWishlist
+    UserWishlist,
+    UserCart
 )
 from ..services.users import UsersService
 
@@ -27,7 +28,8 @@ async def get_user(
 
 @router.post(
     '/wishlist/',
-    status_code=201
+    status_code=201,
+    tags=['wishlist']
 )
 async def add_to_wishlist(
    product_id: int,
@@ -40,7 +42,8 @@ async def add_to_wishlist(
 
 @router.get(
     '/wishlist/',
-    response_model=UserWishlist
+    response_model=UserWishlist,
+    tags=['wishlist']
 )
 async def get_wishlist(
     limit: Optional[int] = 10,
@@ -54,12 +57,56 @@ async def get_wishlist(
 
 @router.delete(
     '/wishlist/',
-    status_code=204
+    status_code=204,
+    tags=['wishlist']
 )
 async def delete_from_wishlist(
     product_id: int,
     users_service: UsersService = Depends()
 ):
     return await users_service.delete_from_wishlist(
+        product_id=product_id
+    )
+
+
+@router.post(
+    '/cart/',
+    status_code=201,
+    tags=['cart']
+)
+async def add_to_cart(
+    product_id: int,
+    users_service: UsersService = Depends()
+):
+    await users_service.add_to_cart(
+        product_id=product_id
+    )
+
+
+@router.get(
+    '/cart/',
+    response_model=UserCart,
+    tags=['cart']
+)
+async def get_cart(
+    limit: Optional[int] = 10,
+    offset: Optional[int] = 0,
+    users_service: UsersService = Depends()
+):
+    return await users_service.get_cart(
+        limit=limit, offset=offset
+    )
+
+
+@router.delete(
+    '/cart/',
+    status_code=204,
+    tags=['cart']
+)
+async def delete_from_cart(
+    product_id: int,
+    users_service: UsersService = Depends()
+):
+    await users_service.delete_from_cart(
         product_id=product_id
     )

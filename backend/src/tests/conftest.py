@@ -27,29 +27,37 @@ async def client() -> AsyncClient:
 
 
 @pytest.fixture(scope='session')
-async def fake_users_data() -> list[dict[str, dict[str, str]]]:
+async def fake_users_data() -> dict[str, dict[str, str]]:
     return {
-        "john@doe.com": {
+        "fake_user_with_admin_scope": {
+            "id": 1,
             "first_name": "john",
             "last_name": "doe",
+            "email": "john@doe.com",
             "password": "secret",
             "scopes": ["admin"]
         },
-        "jane@doe.com": {
+        "fake_user_with_edit_scope": {
+            "id": 2,
             "first_name": "jane",
             "last_name": "doe",
+            "email": "jane@doe.com",
             "password": "secret",
             "scopes": ["edit"]
         },
-        "ivan@ivanov.com": {
+        "fake_common_user": {
+            "id": 3,
             "first_name": "ivan",
             "last_name": "ivanov",
+            "email": "ivan@ivanov.com",
             "password": "secret",
             "scopes": []
         },
-        "fred@nurk.com": {
+        "fake_common_user2": {
+            "id": 4,
             "first_name": "fred",
             "last_name": "nurk",
+            "email": "fred@nurk.com",
             "password": "secret",
             "scopes": []
         }
@@ -73,12 +81,11 @@ async def register_fake_users_and_give_them_privileges(
     fake_users_data: dict[str, dict[str, str]]
 ):
     fake_superusers_data = []
-    id = 0
-    for email, user_data in fake_users_data.items():
+    for id, user_data in enumerate(fake_users_data.values()):
         input = {
             "first_name": user_data["first_name"],
             "last_name": user_data['last_name'],
-            "email": email,
+            "email": user_data['email'],
             "password": user_data['password']
         }
 
@@ -87,13 +94,12 @@ async def register_fake_users_and_give_them_privileges(
             json=input
         )
 
-        id += 1
         if not user_data['scopes']:
             continue
         
         fake_superusers_data.append(
             {
-                "id": id,
+                "id": id + 1,
                 "scopes": scopes.get_scopes_sum_from_scopes(
                     scopes=user_data['scopes']
                 )
@@ -131,9 +137,9 @@ async def users_tokens(
     client: AsyncClient
 ) -> dict[str, str]:
     fake_users_tokens = {}
-    for email, user_data in fake_users_data.items():
+    for user, user_data in fake_users_data.items():
         input = {
-            "email": email,
+            "email": user_data['email'],
             "password": user_data['password']
         }
 
@@ -143,34 +149,104 @@ async def users_tokens(
         )
 
         token = response.json()['access_token']
-        fake_users_tokens[email] = token
+        fake_users_tokens[user] = token
 
     return fake_users_tokens
+
+
+@pytest.fixture(scope='module')
+async def fake_user_with_admin_scope_data(
+    fake_users_data: dict
+) -> dict:
+    user_data = fake_users_data['fake_user_with_admin_scope']
+    user_data.pop('password')
+
+    return user_data 
 
 
 @pytest.fixture(scope='module')
 async def token_with_admin_scope(
     users_tokens: dict
 ) -> str:
-    return users_tokens['john@doe.com']
+    return users_tokens['fake_user_with_admin_scope']
+
+
+@pytest.fixture(scope='module')
+async def fake_user_with_edit_scope_data(
+    fake_users_data: dict
+) -> dict:
+    user_data = fake_users_data['fake_user_with_edit_scope']
+    user_data.pop('password')
+
+    return user_data
 
 
 @pytest.fixture(scope='module')
 async def token_with_edit_scope(
     users_tokens: dict
 ) -> str:
-    return users_tokens['jane@doe.com']
+    return users_tokens['fake_user_with_edit_scope']
+
+
+@pytest.fixture(scope='module')
+async def fake_common_user_data(
+    fake_users_data: dict
+) -> dict:
+    user_data = fake_users_data['fake_common_user']
+    user_data.pop('password')
+
+    return user_data
 
 
 @pytest.fixture(scope='module')
 async def token_with_no_scopes(
     users_tokens: dict
 ) -> str:
-    return users_tokens['ivan@ivanov.com']
+    return users_tokens['fake_common_user']
+
+
+@pytest.fixture(scope='module')
+async def fake_common_user2_data(
+    fake_users_data: dict
+) -> dict:
+    user_data = fake_users_data['fake_common_user2']
+    user_data.pop('password')
+
+    return user_data
 
 
 @pytest.fixture(scope='module')
 async def token_with_no_scopes2(
     users_tokens: dict
 ) -> str:
-    return users_tokens['fred@nurk.com']
+    return users_tokens['fake_common_user2']
+
+
+@pytest.fixture(scope='class')
+async def fake_product_basic_data() -> dict:
+    return {
+        "id": 1,
+        "name": "In the Court of the Crimson King"
+    }
+
+
+@pytest.fixture(scope='class')
+async def create_fake_product(
+    fake_product_basic_data: dict
+):
+    db_conn = await asyncpg.connect(
+        "postgres://postgres:1234@localhost/vinyl"
+    )
+
+    await db_conn.execute(
+        f"""
+            INSERT INTO products
+            (
+                name
+            )
+            VALUES
+            (
+                '{fake_product_basic_data['name']}'
+            )
+        """
+    )
